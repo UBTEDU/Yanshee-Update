@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+
+# New raspbian image tar file
+NOOBS_NEWIMAGES=$1
+# md5sum value for new image
+NOOBS_NEWIMAGES_MD5SUM=$2
+
+NOOBS_NEWIMAGES_TMPDIR=/tmp/noobsfs
+NOOBS_NEWIMAGES_DIR=$NOOBS_NEWIMAGES_TMPDIR/os/
+
+MOUNT_NOOBSFS=/mnt/noobsfs
+MOUNT_NOOBSFS_IMAGES=$MOUNT_NOOBSFS/os
+function mount_noobsfs() {
+  #statements
+  mkdir -p $MOUNT_NOOBSFS
+  mount /dev/mmcblk0p1 $MOUNT_NOOBSFS
+  echo "Mount /dev/mmcblk0p1 to $MOUNT_NOOBSFS"
+}
+
+function unmount_noobsfs() {
+  #statements
+  umount $MOUNT_NOOBSFS
+  rm -rf $MOUNT_NOOBSFS
+}
+
+function check_md5sum() {
+  # Check the md5sum
+  local rc=0
+  local md5sum_newimage=`md5sum $NOOBS_NEWIMAGES | cut -d" " -f 1`
+
+  echo "New image md5sum $md5sum_newimage a"
+  echo "User md5sum 	 $NOOBS_NEWIMAGES_MD5SUM a"
+  if [ "$NOOBS_NEWIMAGES_MD5SUM" == "$md5sum_newimage" ];
+  then
+    # Get the right version of noobs
+    echo "MD5 check success."
+    rc=0
+  else
+    echo "Check $NOOBS_NEWIMAGES md5sum failed."
+    echo "I am going to delete the new image file, since the md5sum is wrong."
+    echo "Please make sure you have chose the right file."
+    rc=-1
+  fi
+  return $rc
+}
+
+function copy_newimage2noobs() {
+  # Update the files to NOOBS, this function will not check the files.
+  # Please check the files before calling this
+
+  # mount the noobsfs to the system
+  mount_noobsfs
+
+  mkdir -p $NOOBS_NEWIMAGES_TMPDIR
+  tar -xvzf $NOOBS_NEWIMAGES -C $NOOBS_NEWIMAGES_TMPDIR
+  if [ -f $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz ]; then
+	rm $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz
+  fi
+  pushd $NOOBS_NEWIMAGES_TMPDIR
+
+  cp -r $NOOBS_NEWIMAGES_TMPDIR/* $MOUNT_NOOBSFS/os/Raspbian/
+  unmount_noobsfs
+  echo "Upgrade to new version success. Please reboot the system, and try to install new NOOBS images."
+}
+
+function usage() {
+  #statements
+  echo "Usage: $0"
+  echo "$0 <images> <md5sum>"
+  echo "<images>  New image file.　It is a tar.gz file."
+  echo "<md5sum>  New image file's md5sum"
+}
+
+function main() {
+  # Check the md5sum of the new files, if everything is ok.
+  # Copy the files to NOOBS
+  # if [ $# -ne 2 ];
+  # then
+  #   echo "Current parameter number $#"
+  #   usage
+  #   exit 1
+  # fi
+
+  local check_version=0
+  check_md5sum
+  check_version=$?
+
+  echo "check_version " $check_version
+  if [[ $check_version == 0 ]];
+  then
+    copy_newimage2noobs
+  fi
+
+}
+
+main
