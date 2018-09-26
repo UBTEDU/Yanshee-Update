@@ -1,26 +1,42 @@
 #!/usr/bin/env bash
 
+# Copyright (c) 2018 by UBTECH.
+# All Rights Reserved.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+set -x
 # New raspbian image tar file
 NOOBS_NEWIMAGES=$1
 # md5sum value for new image
 NOOBS_NEWIMAGES_MD5SUM=$2
 
 NOOBS_NEWIMAGES_TMPDIR=/tmp/noobsfs
-NOOBS_NEWIMAGES_DIR=$NOOBS_NEWIMAGES_TMPDIR/os/
 
 MOUNT_NOOBSFS=/mnt/noobsfs
 MOUNT_NOOBSFS_IMAGES=$MOUNT_NOOBSFS/os
 function mount_noobsfs() {
-  #statements
+  # mount the sd card to $MOUNT_NOOBSFS
   mkdir -p $MOUNT_NOOBSFS
   mount /dev/mmcblk0p1 $MOUNT_NOOBSFS
   echo "Mount /dev/mmcblk0p1 to $MOUNT_NOOBSFS"
 }
 
 function unmount_noobsfs() {
-  #statements
+  # umount the sd card
   umount $MOUNT_NOOBSFS
-  rm -rf $MOUNT_NOOBSFS
+  # rm $MOUNT_NOOBSFS after umount the sd card
+  rm -r $MOUNT_NOOBSFS
 }
 
 function check_md5sum() {
@@ -44,22 +60,56 @@ function check_md5sum() {
   return $rc
 }
 
+function check_newnoobs_fs() {
+  # Check the new noobs image
+  # $1 means the new noobs directory
+  # The return value 0 means the new noobs image is valid
+  # The other value means the new noobs image is invalid
+  local rc=0
+  local dir=$1
+  if [ ! -d "$dir/os" ]; then
+    rc=1
+    echo "Please check the NOOBS image, there is no os directory."
+  elif [ ! -d "$dir/os/Raspbian" ]; then
+    rc=2
+    echo "Please check the NOOBS image, there is no os/Raspbian directgory"
+  elif [ ! -f "$dir/os/Raspbian/boot.tar.xz" ]; then
+    rc=3
+    echo "Please check the NOOBS image, there is no os/Raspbian/boot.tar.xz"
+  elif [ ! -f "$dir/os/Raspbian/root.tar.xz" ]; then
+    rc=4
+    echo "Please check the NOOBS image, there is no os/Raspbian/root.tar.xz"
+  fi
+  return $rc
+}
+
 function copy_newimage2noobs() {
   # Update the files to NOOBS, this function will not check the files.
   # Please check the files before calling this
 
   # mount the noobsfs to the system
+  local check_newnoobsfs=0
   mount_noobsfs
 
+  # Create new noobs tmp directory
   mkdir -p $NOOBS_NEWIMAGES_TMPDIR
   tar -xvzf $NOOBS_NEWIMAGES -C $NOOBS_NEWIMAGES_TMPDIR
   if [ -f $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz ]; then
-	rm $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz
+	   rm $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz
   fi
   pushd $NOOBS_NEWIMAGES_TMPDIR
 
-  cp -r $NOOBS_NEWIMAGES_TMPDIR/* $MOUNT_NOOBSFS/os/Raspbian/
+  check_newnoobs_fs $NOOBS_NEWIMAGES_TMPDIR
+  check_newnoobsfs=$?
+  if [ $check_newnoobsfs -eq 0 ]; then
+    echo "Start to copy files to sd card."
+    cp -r $NOOBS_NEWIMAGES_TMPDIR/* $MOUNT_NOOBSFS/
+  fi
+
   unmount_noobsfs
+
+  # Remove the tmp dirtectory
+  rm -rf $NOOBS_NEWIMAGES_TMPDIR
   echo "Upgrade to new version success. Please reboot the system, and try to install new NOOBS images."
 }
 
@@ -74,23 +124,22 @@ function usage() {
 function main() {
   # Check the md5sum of the new files, if everything is ok.
   # Copy the files to NOOBS
-  # if [ $# -ne 2 ];
-  # then
-  #   echo "Current parameter number $#"
-  #   usage
-  #   exit 1
-  # fi
 
-  local check_version=0
+  local md5_valid=0
   check_md5sum
-  check_version=$?
+  md5_valid=$?
 
-  echo "check_version " $check_version
-  if [[ $check_version == 0 ]];
+  echo "md5_valid " $md5_valid
+  if [ $md5_valid -eq 0 ];
   then
     copy_newimage2noobs
   fi
-
 }
 
+if [ $# -ne 2 ];
+then
+  echo "Current parameter number $#"
+  usage
+  exit 1
+fi
 main
