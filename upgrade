@@ -17,9 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 set -x
 # New raspbian image tar file
-NOOBS_NEWIMAGES=$1
+NOOBS_NEWIMAGES=""
 # md5sum value for new image
-NOOBS_NEWIMAGES_MD5SUM=$2
+NOOBS_NEWIMAGES_MD5SUM=""
 
 NOOBS_NEWIMAGES_TMPDIR=/tmp/noobsfs
 
@@ -46,7 +46,7 @@ function check_md5sum() {
 
   echo "New image md5sum $md5sum_newimage a"
   echo "User md5sum 	 $NOOBS_NEWIMAGES_MD5SUM a"
-  if [ "$NOOBS_NEWIMAGES_MD5SUM" == "$md5sum_newimage" ];
+  if [ x"$NOOBS_NEWIMAGES_MD5SUM" == x"$md5sum_newimage" ];
   then
     # Get the right version of noobs
     echo "MD5 check success."
@@ -95,7 +95,7 @@ function copy_newimage2noobs() {
   mkdir -p $NOOBS_NEWIMAGES_TMPDIR
   tar -xvzf $NOOBS_NEWIMAGES -C $NOOBS_NEWIMAGES_TMPDIR
   if [ -f $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz ]; then
-	   rm $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz
+    rm $MOUNT_NOOBSFS/os/Raspbian/blank.tar.gz
   fi
   pushd $NOOBS_NEWIMAGES_TMPDIR
 
@@ -113,21 +113,17 @@ function copy_newimage2noobs() {
   echo "Upgrade to new version success. Please reboot the system, and try to install new NOOBS images."
 }
 
-function usage() {
-  #statements
-  echo "Usage: $0"
-  echo "$0 <images> <md5sum>"
-  echo "<images>  New image file.　It is a tar.gz file."
-  echo "<md5sum>  New image file's md5sum"
-}
-
 function main() {
   # Check the md5sum of the new files, if everything is ok.
   # Copy the files to NOOBS
 
   local md5_valid=0
-  check_md5sum
-  md5_valid=$?
+  if [ x$NOOBS_NEWIMAGES_MD5SUM != x"" ]; then
+    check_md5sum
+    md5_valid=$?
+  else
+    md5_valid=0
+  fi
 
   echo "md5_valid " $md5_valid
   if [ $md5_valid -eq 0 ];
@@ -136,10 +132,44 @@ function main() {
   fi
 }
 
-if [ $# -ne 2 ];
-then
-  echo "Current parameter number $#"
-  usage
-  exit 1
-fi
+function usage() {
+  #statements
+  echo "Usage: $0"
+  echo "$0 -f <images> -s <md5sum>"
+  echo "<images>  New image file.　It is a tar.gz file."
+  echo "<md5sum>  New image file's md5sum"
+  echo "Please note, if the md5sum is not provited, it means the md5 will not check when upgrading."
+}
+
+ARGS=`getopt -o "f:s::" -l "md5sum,file:" -n "upgrade" -- "$@"`
+eval set -- "${ARGS}"
+
+while true; do
+  case "${1}" in
+    -s|--md5sum)
+      if [[ -n "${1}" ]]; then
+        NOOBS_NEWIMAGES_MD5SUM=${1}
+        shift;
+      fi
+      ;;
+    -f|--file)
+      shift;
+      if [[ -n "${1}" ]]; then
+        NOOBS_NEWIMAGES=${1}
+        shift;
+      fi
+      ;;
+    --)
+      shift
+      usage
+      exit 1
+      ;;
+    *)
+      shift
+      usage
+      exit 1
+      ;;
+  esac
+done
+
 main
