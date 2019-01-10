@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-set -x
+#set -x
 # New raspbian image tar file
 NOOBS_NEWIMAGES=""
 # md5sum value for new image
@@ -44,8 +44,8 @@ function check_md5sum() {
   local rc=0
   local md5sum_newimage=`md5sum $NOOBS_NEWIMAGES | cut -d" " -f 1`
 
-  echo "New image md5sum $md5sum_newimage a"
-  echo "User md5sum 	 $NOOBS_NEWIMAGES_MD5SUM a"
+  echo "New image md5sum $md5sum_newimage "
+  echo "User md5sum 	 $NOOBS_NEWIMAGES_MD5SUM "
   if [ x"$NOOBS_NEWIMAGES_MD5SUM" == x"$md5sum_newimage" ];
   then
     # Get the right version of noobs
@@ -141,35 +141,41 @@ function usage() {
   echo "Please note, if the md5sum is not provited, it means the md5 will not check when upgrading."
 }
 
-ARGS=`getopt -o "f:s::" -l "md5sum,file:" -n "upgrade" -- "$@"`
-eval set -- "${ARGS}"
-
+ARGS=`getopt -o s:dhf: --long md5sum::,debug::,help::,file: -n 'ubt-upgrade' -- "$@"`
 while true; do
+  echo "ARGS " ${1} ${2}
   case "${1}" in
     -s|--md5sum)
       if [[ -n "${1}" ]]; then
+        shift
         NOOBS_NEWIMAGES_MD5SUM=${1}
-        shift;
       fi
       ;;
     -f|--file)
-      shift;
       if [[ -n "${1}" ]]; then
+        shift
         NOOBS_NEWIMAGES=${1}
-        shift;
+      else
+        usage
+        exit 1
       fi
       ;;
-    --)
-      shift
+    -h|--help)
       usage
-      exit 1
+      exit 0
+      ;;
+    -d|--debug)
+      set -x
+      ;;
+    --)
+      break
       ;;
     *)
-      shift
       usage
       exit 1
       ;;
   esac
+  shift
 done
 
 main
