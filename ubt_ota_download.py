@@ -32,8 +32,8 @@ import urllib3
 import getopt
 
 
-# UPGRADE_URL = "https://upgrade.ubtrobot.com/v1/upgrade-rest/"
-UPGRADE_URL = "http://10.10.20.71:8032/v1/upgrade-rest/"
+UPGRADE_URL = "https://upgrade.ubtrobot.com/v1/upgrade-rest/"
+# UPGRADE_URL = "http://10.10.20.71:8032/v1/upgrade-rest/"
 APP_ID = '500010015'
 APP_KEY = '185ce49be88544da81741a01b1f1ea2c'
 
@@ -64,7 +64,7 @@ class DownloadNoobsImage(object):
 
     """
 
-    def __init__(self, url, logger):
+    def __init__(self, url, module, logger):
         """Init DownloadNoobsImage class.
 
         Parameters
@@ -80,6 +80,7 @@ class DownloadNoobsImage(object):
         """
         super(DownloadNoobsImage, self).__init__()
         self.__url = url
+        self.__module = module
         self.__logger = logger
 
     def progress_rate(self, block_num, block_size, total_size):
@@ -100,7 +101,7 @@ class DownloadNoobsImage(object):
 
         """
         percent = 100.0 * block_num * block_size / total_size
-        self.__logger.debug("Downloading progress. %s%%", int(percent))
+        self.__logger.info("Downloading progress. %s%%", int(percent))
 
     def download(self, url, target_md5, file_name, path):
         """Download the file from OTA server.
@@ -131,13 +132,13 @@ class DownloadNoobsImage(object):
             self.__logger.debug('Try to download noobs from OTA server. file: %s, url:%s', local_noobs, url)
             urllib.urlretrieve(url, local_noobs, self.progress_rate)
             md5sum_value = self.get_file_md5(local_noobs)
-            self.__logger.debug('File is downloaded, md5sum: %s', md5sum_value)
+            self.__logger.info('File is downloaded, md5sum: %s', md5sum_value)
 
             if md5sum_value == target_md5:
-                self.__logger.debug('Download success')
+                self.__logger.info('Download success')
                 ret = True
             else:
-                self.__logger.debug('Download noobs failed. \n \
+                self.__logger.info('Download noobs failed. \n \
                 Downloaded file md5sum: %s \n \
                 MD5 value from server: %s', md5sum_value, target_md5)
                 ret = False
@@ -237,7 +238,7 @@ class DownloadNoobsImage(object):
             False, (url, md5, force, version)    means check new version failed
 
         """
-        url = UPGRADE_URL
+        url = self.__url
         url += ('version/upgradable?productName=YANSHEE'
                 '&moduleNames=')
         url += module_name
@@ -323,28 +324,30 @@ class DownloadNoobsImage(object):
             Description of returned object.
 
         """
-        cmd = "dpkg -l|grep " + module_name + "|awk '{print $3}'"
-        version = self.do_shell_cmd(cmd)
-        result = 'v' + version
-        return result.replace('-', '.')
+        version_file = "/etc/ubt_version.txt"
+        if os.access(version_file, os.R_OK):
+            cmd = "cat" + version_file + " |grep " + module_name + "cut -d\" \" -f2"
+            version = self.do_shell_cmd(cmd)
+            result = 'v' + version
+            return result.replace('-', '.')
+        else:
+            return "v1.3.0"
 
-    def run(self, module_name):
+    def run(self):
         """Start to detect the new noobs."""
         devid = self.get_devid()
-        version = self.get_robot_version(MODULE_ROBOT_NAME)
-        version = "1.3.0"
+        version = self.get_robot_version(self.__module)
         while True:
-            ret, info = self.detect_new_version(module_name, version, devid)
+            ret, info = self.detect_new_version(self.__module, version, devid)
             if ret is True:
-                ret = self.download(info[0], info[1], module_name, '.')
+                ret = self.download(info[0], info[1], self.__module, '.')
                 if ret is False:
                     self.__logger.info('Download new version failed!'
                                        'I am going to try it in 5 seconds '
                                        'later.')
                     time.sleep(5)
                 else:
-                    self.__logger.info('Download noobs success. '
-                                       'The system will be rebooted.')
+                    self.__logger.info('Download noobs success. ')
                     break
 
     __url = ""
@@ -392,5 +395,5 @@ if __name__ == "__main__":
     logger = logging.getLogger(logger_name)
     logging.basicConfig(level=logging.INFO)
 
-    download = DownloadNoobsImage(url, logger)
-    download.run(module)
+    download = DownloadNoobsImage(url, module, logger)
+    download.run()

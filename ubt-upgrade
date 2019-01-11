@@ -142,8 +142,8 @@ function usage() {
 }
 
 ARGS=`getopt -o s:dhf: --long md5sum::,debug::,help::,file: -n 'ubt-upgrade' -- "$@"`
+eval set -- "$ARGS"
 while true; do
-  echo "ARGS " ${1} ${2}
   case "${1}" in
     -s|--md5sum)
       if [[ -n "${1}" ]]; then
@@ -177,5 +177,9 @@ while true; do
   esac
   shift
 done
+
+echo "ubt-upgrade "
+echo "Noobs new image: " $NOOBS_NEWIMAGES
+echo "Noobs new md5sum:  " $NOOBS_NEWIMAGES_MD5SUM
 
 main
