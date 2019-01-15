@@ -331,7 +331,7 @@ class DownloadNoobsImage(object):
             result = 'v' + version
             return result.replace('-', '.')
         else:
-            return "v1.3.0"
+            return "v1.3.5"
 
     def run(self):
         """Start to detect the new noobs."""
@@ -376,8 +376,10 @@ def usage():
 
 if __name__ == "__main__":
 
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     url = UPGRADE_URL
     module = NOOBS_FILE_NAME
+
     try:
         options, args = getopt.getopt(sys.argv[1:],
                                       "hu:m:", ["help", "url=", "module="])
