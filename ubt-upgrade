@@ -29,12 +29,16 @@ function mount_noobsfs() {
   # mount the sd card to $MOUNT_NOOBSFS
   mkdir -p $MOUNT_NOOBSFS
   mount /dev/mmcblk0p1 $MOUNT_NOOBSFS
+  # Since mount/umount takes serval seconds, sleep 5 seconds here
+  sleep 5
   echo "Mount /dev/mmcblk0p1 to $MOUNT_NOOBSFS"
 }
 
 function unmount_noobsfs() {
   # umount the sd card
   umount $MOUNT_NOOBSFS
+  # Since mount/umount takes serval seconds, sleep 5 seconds here
+  sleep 5
   # rm $MOUNT_NOOBSFS after umount the sd card
   rm -r $MOUNT_NOOBSFS
 }
